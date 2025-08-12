@@ -1,0 +1,390 @@
+<div class="member-select-page">
+  <h1>우리집 회원 선택</h1>
+
+  <div class="p1-search-container">
+    <input
+      type="text"
+      id="p1-search-input"
+      class="p1-search-box"
+      placeholder="회원 검색..."
+    />
+    <input type="date" id="p1-date-input" class="p1-date-input" />
+  </div>
+
+  <div class="p1-members-container" id="p1-members-container">
+  </div>
+
+  <div id="p1-loading" class="p1-loading-overlay">
+    <div class="p1-loading-spinner"></div>
+    <p>데이터 로딩 중...</p>
+  </div>
+</div>
+
+<script>
+  function initializePage() {
+    initDateInput();
+
+    const searchInput = document.getElementById("p1-search-input");
+    if (searchInput) {
+      searchInput.addEventListener("input", filterMembers);
+    }
+
+    const dateInput = document.getElementById("p1-date-input");
+    let formattedDate = "";
+
+    if (dateInput && dateInput.value) {
+      formattedDate = formatDate(dateInput.value);
+    } else {
+      formattedDate = formatDate(new Date());
+    }
+
+    if (typeof loadAllData === "function") {
+      showLoading(true);
+
+      loadAllData(formattedDate)
+        .then(() => {
+          if (window.totalData && window.totalData.memberData) {
+            const memberData = processMemberData(window.totalData.memberData);
+            displayMembers(memberData);
+          }
+          showLoading(false);
+        })
+        .catch((error) => {
+          showLoading(false);
+          loadMemberData();
+        });
+    } else {
+      if (
+        window.totalData &&
+        window.totalData.memberData &&
+        window.totalData.memberData.length > 0
+      ) {
+        const memberData = processMemberData(window.totalData.memberData);
+        displayMembers(memberData);
+      } else {
+        loadMemberData();
+      }
+    }
+  }
+
+  window.initializeMemberSelect = function () {
+    initializePage();
+  };
+
+  async function loadMemberData() {
+    showLoading(true);
+
+    try {
+      const dateInput = document.getElementById("p1-date-input");
+      let formattedDate = "";
+
+      if (dateInput && dateInput.value) {
+        formattedDate = formatDate(dateInput.value);
+      } else {
+        formattedDate = formatDate(new Date());
+      }
+
+      try {
+        const result = await getselectedMemberData(formattedDate);
+        const memberData = processMemberData(result);
+        displayMembers(memberData);
+        showLoading(false);
+      } catch (error) {
+        alert("회원 데이터를 불러올 수 없습니다.");
+        showLoading(false);
+
+        const container = document.getElementById("p1-members-container");
+        if (container) {
+          container.innerHTML =
+            '<p class="p1-no-results">데이터를 불러오는 중 오류가 발생했습니다.</p>';
+        }
+      }
+    } catch (error) {
+      showLoading(false);
+
+      const container = document.getElementById("p1-members-container");
+      if (container) {
+        container.innerHTML =
+          '<p class="p1-no-results">데이터를 불러오는 중 오류가 발생했습니다.</p>';
+      }
+    }
+  }
+
+  function processMemberData(data) {
+    if (!data || !Array.isArray(data)) {
+      return [];
+    }
+
+    try {
+      return data
+        .map((row) => {
+          if (row && typeof row === 'object' && !Array.isArray(row) && row.회원번호) {
+            const memberNumber = row.회원번호 || "";
+            const memberName = row.회원명 || "";
+            const birthDate = row.생년월일 || "";
+            
+            return [memberNumber, memberName, birthDate];
+          } 
+          else if (Array.isArray(row)) {
+          const memberNumber = row[0] || "";
+          const memberName = row[1] || "";
+          const birthDate = row[2] || "";
+
+          return [memberNumber, memberName, birthDate];
+          }
+          return ["", "", ""];
+        })
+        .filter((member) => {
+          return member[0] && member[0] !== "회원번호";
+        })
+        .sort((a, b) => {
+          return a[1].localeCompare(b[1], 'ko');
+        });
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function displayMembers(members) {
+    const container = document.getElementById("p1-members-container");
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    if (!members || members.length === 0) {
+      container.innerHTML =
+        '<p class="p1-no-results">표시할 회원이 없습니다.</p>';
+      return;
+    }
+
+    members.forEach((member, index) => {
+      const memberNumber = member[0];
+      const memberName = member[1];
+      const birthDate = member[2];
+
+      let formattedBirth = "정보 없음";
+
+      if (birthDate) {
+        const birthStr = String(birthDate);
+        if (birthStr.length === 8) {
+          formattedBirth = `${birthStr.substring(2, 4)}.${birthStr.substring(
+            4,
+            6
+          )}.${birthStr.substring(6, 8)}`;
+        }
+      }
+
+      const memberCard = document.createElement("div");
+      memberCard.className = "p1-member-card";
+
+      const colorIndex = Math.floor(Math.random() * 8) + 1;
+      memberCard.classList.add(`pastel-color-${colorIndex}`);
+
+      memberCard.dataset.memberNumber = memberNumber;
+      memberCard.innerHTML = `
+                <h3>${memberName}</h3>
+                <p>회원번호: ${memberNumber}</p>
+                <p>생년월일: ${formattedBirth}</p>
+            `;
+
+      memberCard.addEventListener("click", function () {
+        selectMember(memberNumber, memberName, birthDate);
+      });
+
+      container.appendChild(memberCard);
+
+      setTimeout(() => {
+        memberCard.classList.add("animated");
+      }, index * 50);
+    });
+
+    setTimeout(() => {
+      highlightMembersWithClasses();
+    }, members.length * 50+1);
+  }
+
+  function highlightMembersWithClasses() {
+    const memberCards = document.querySelectorAll(".p1-member-card");
+    memberCards.forEach((card) => {
+      card.classList.remove("p1-has-classes");
+      const existingBadge = card.querySelector(".p1-class-badge");
+      if (existingBadge) {
+        card.removeChild(existingBadge);
+      }
+    });
+
+    if (
+      window.totalData &&
+      window.totalData.classData &&
+      window.totalData.classData.length > 0
+    ) {
+      const memberNumbers = new Set();
+      window.totalData.classData.forEach((classItem) => {
+        if (classItem && typeof classItem === 'object' && !Array.isArray(classItem) && classItem.회원번호) {
+          const memberNumber = classItem.회원번호;
+          if (memberNumber) {
+            memberNumbers.add(memberNumber);
+          }
+        } 
+        else if (classItem && classItem.length >= 11) {
+          const memberNumber = classItem[10]; 
+          if (memberNumber) {
+            memberNumbers.add(memberNumber);
+          }
+        }
+      });
+
+      memberCards.forEach((card) => {
+        const cardMemberNumber = card.dataset.memberNumber;
+        if (memberNumbers.has(cardMemberNumber)) {
+          card.classList.add("p1-has-classes");
+
+          if (!card.querySelector(".p1-class-badge")) {
+            const badge = document.createElement("div");
+            badge.className = "p1-class-badge";
+            badge.textContent = "신청완료";
+            card.appendChild(badge);
+          }
+        }
+      });
+    }
+  }
+
+  function selectMember(memberNumber, memberName, birthDate) {
+    const memberData = {
+      number: memberNumber,
+      name: memberName,
+      birth: birthDate,
+    };
+
+    try {
+      const appliedClasses = [];
+
+      if (
+        window.totalData &&
+        window.totalData.classData &&
+        Array.isArray(window.totalData.classData)
+      ) {
+        window.totalData.classData.forEach((classItem) => {
+          if (classItem && classItem.회원번호 === memberNumber) {
+            const applicationData = {
+              activityId: classItem.계획_id,
+              activityDate: String(classItem.날짜),
+              classType: classItem.차수,
+              startTime: String(classItem.시작시간),
+              endTime: String(classItem.종료시간),
+              instructor: classItem.직원명,
+              employeeNumber: classItem.직원번호,
+              title: classItem.활동명,
+              lifeArea: classItem.생활영역,
+              memberNumber: classItem.회원번호,
+              memberName: classItem.회원명,
+              memberBirth: classItem.생년월일,
+            };
+
+            appliedClasses.push(applicationData);
+          }
+        });
+      }
+
+      window.updateState("selectedMember", memberData);
+      window.updateState("appliedClasses", appliedClasses);
+
+      const pageContainer = document.querySelector(".member-select-page");
+      if (pageContainer) {
+        pageContainer.classList.add("fade-out");
+        setTimeout(() => {
+          loadPage("class-select");
+        }, 400);
+      }
+    } catch (error) {
+      alert("회원 선택 중 오류가 발생했습니다.");
+    }
+  }
+
+  function initDateInput() {
+    const dateInput = document.getElementById("p1-date-input");
+    if (!dateInput) return;
+
+    let selectedDate = window.appState.selectedDate;
+
+    if (selectedDate) {
+      if (!(selectedDate instanceof Date)) {
+        selectedDate = new Date(selectedDate);
+      }
+    } else {
+      selectedDate = new Date();
+      window.updateState("selectedDate", selectedDate);
+    }
+
+    const year = selectedDate.getFullYear();
+    const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+    const day = String(selectedDate.getDate()).padStart(2, "0");
+    const formattedDate = `${year}-${month}-${day}`;
+    dateInput.value = formattedDate;
+
+    dateInput.addEventListener("change", handleDateChange);
+  }
+
+  function handleDateChange(event) {
+    const newDate = new Date(event.target.value);
+
+    window.updateState("selectedDate", newDate);
+
+    const year = newDate.getFullYear();
+    const month = String(newDate.getMonth() + 1).padStart(2, "0");
+    const day = String(newDate.getDate()).padStart(2, "0");
+    const formattedDate = `${year}${month}${day}`;
+
+    if (typeof loadAllData === "function") {
+      try {
+        const result = loadAllData(formattedDate);
+        if (result && typeof result.then === "function") {
+          result
+            .then(() => {
+              loadMemberData();
+            })
+            .catch((error) => {
+              loadMemberData();
+            });
+        } else {
+          setTimeout(() => {
+            loadMemberData();
+          }, 500);
+        }
+      } catch (error) {
+        loadMemberData();
+      }
+      return;
+    } else {
+      loadMemberData();
+    }
+  }
+
+  function filterMembers() {
+    const searchText = document
+      .getElementById("p1-search-input")
+      .value.toLowerCase();
+    const memberCards = document.querySelectorAll(".p1-member-card");
+
+    memberCards.forEach((card) => {
+      const text = card.textContent.toLowerCase();
+      if (text.includes(searchText)) {
+        card.style.display = "block";
+      } else {
+        card.style.display = "none";
+      }
+    });
+  }
+
+  function showLoading(isShow) {
+    const loadingElement = document.getElementById("p1-loading");
+    if (loadingElement) {
+      loadingElement.style.display = isShow ? "flex" : "none";
+    }
+  }
+
+  if (window.location.pathname.includes("member-select.html")) {
+    initializePage();
+  }
+</script>

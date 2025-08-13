@@ -1,288 +1,1520 @@
-const SUPABASE_URL = "https://dfomeijvzayyszisqflo.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmb21laWp2emF5eXN6aXNxZmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ4NjYwNDIsImV4cCI6MjA2MDQ0MjA0Mn0.-r1iL04wvPNdBeIvgxqXLF2rWqIUX5Ot-qGQRdYo_qk";
+<div class="class-select-page">
+  <h1>우리집 일상선택</h1>
 
-let supabaseClient = null;
+  <div class="member-info" id="member-info">
+    <div class="member-info-text">
+      <div class="member-name" id="member-name">-</div>
+      <div class="member-details" id="member-details">
+        회원번호: -, 생년월일: -
+      </div>
+      <div class="button-container">
+        <button class="change-member-btn" id="change-member-btn">
+          회원 변경
+        </button>
+        <button class="change-member-btn" id="reset-btn">초기화</button>
+      </div>
+    </div>
+    <div class="applied-classes">
+      <div class="applied-classes-title">신청 목록:</div>
+      <div class="applied-class-tags" id="applied-class-tags">
+        <span class="empty-applied">아직 신청한 클래스가 없습니다.</span>
+      </div>
+    </div>
+    <div class="date-selector">
+      <span class="date-label">조회날짜:</span>
+      <input type="date" id="date-input" class="date-input" />
+    </div>
+  </div>
 
-function initSupabase() {
-  if (!supabaseClient) {
-    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  }
-  return supabaseClient;
-}
+  <div class="filter-container" id="filter-container">
+  </div>
 
-window.supabase = initSupabase();
+  <div class="products-container" id="products-container">
+  </div>
 
-async function createClient() {
-  if (!supabaseClient && !window.supabase) {
-    return new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.4';
-      script.onload = () => {
-        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        resolve(supabaseClient);
-      };
-      script.onerror = () => {
-        reject(new Error('Supabase 클라이언트 라이브러리 로드 실패'));
-      };
-      document.head.appendChild(script);
-    });
-  }
-  
-  if (!supabaseClient && window.supabase) {
-    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  }
-  return supabaseClient;
-}
+  <div id="confirm-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title">신청 확인</h2>
+        <span class="modal-close" id="modal-close">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="modal-info">
+          <p><strong>회원:</strong> <span id="confirm-member-name">-</span></p>
+          <p>
+            <strong>활동:</strong> <span id="confirm-activity-name">-</span>
+          </p>
+          <p><strong>시간:</strong> <span id="confirm-time">-</span></p>
+          <p><strong>직원명:</strong> <span id="confirm-instructor">-</span></p>
+        </div>
+        <p>위 활동을 신청하시겠습니까?</p>
+        <div class="modal-buttons">
+          <button id="apply-button" class="apply-button">신청하기</button>
+          <button id="cancel-button" class="cancel-button">취소</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-async function getselectedMemberData(selectedDate) {
-  try {
-    const client = await initSupabase();
+  <div id="loading" class="loading-overlay">
+    <div class="loading-spinner"></div>
+    <p>데이터 로딩 중...</p>
+  </div>
 
-    const { data, error } = await client
-      .from('membersinfo')
-      .select('회원번호, 회원명, 생년월일, 입소일, 퇴소일')
-      .neq('회원번호', '상담회원')
-      .lte('입소일', selectedDate)
-      .gte('퇴소일', selectedDate);
+  <div id="success-message" class="success-message">신청이 완료되었습니다!</div>
 
-    if (error) throw error;
+  <div id="complete-modal-overlay" class="complete-modal-overlay">
+    <div id="complete-modal-container" class="complete-modal-container">
+      <div id="complete-modal-header" class="complete-modal-header">
+        <h2 id="complete-modal-title" class="complete-modal-title">
+          신청 내역 확인
+        </h2>
+        <div id="complete-modal-subtitle" class="complete-modal-subtitle">
+          활동 신청을 완료하시겠습니까?
+        </div>
+        <div id="complete-modal-close" class="complete-modal-close">
+          <span>&times;</span>
+        </div>
+      </div>
+      <div id="complete-modal-body" class="complete-modal-body">
+        <p id="complete-modal-message" class="complete-modal-message">
+          모든 활동 신청이 완료되었습니다. 아래 신청 내역을 확인해주세요.
+        </p>
+        <div id="complete-classes-list" class="complete-classes-list">
+        </div>
+        <div id="complete-modal-actions" class="complete-modal-actions">
+          <button
+            id="complete-modal-btn-primary"
+            class="complete-modal-btn complete-modal-btn-primary"
+          >
+            신청 완료
+          </button>
+          <button
+            id="complete-modal-btn-secondary"
+            class="complete-modal-btn complete-modal-btn-secondary"
+          >
+            계속 선택하기
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
-    return data;
-  } catch (error) {
-    return [];
-  }
-}
+<script>
+  let selectedMember = null;
+  let selectedActivity = null;
+  let appliedClasses = [];
+  let selectedDate = new Date();
+  let isProcessing = false;
 
-async function getselectedPlanData(selectedDate) {
-  try {
-    const client = await initSupabase();
+  const CLASS_TIMES = {
+    START: [],
+    END: [],
+    LABELS: [],
+    TITLES: [],
 
-    const { data, error } = await client
-      .from('activities_plan')
-      .select('*')
-      .eq('날짜', selectedDate);
+    getClassIndex: function (time) {
+      const timeNum = parseInt(time);
+      for (let i = 0; i < this.START.length; i++) {
+        if (timeNum >= this.START[i] && timeNum < this.END[i]) {
+          return i;
+        }
+      }
+      return -1;
+    },
 
-    if (error) throw error;
+    getLabel: function (index) {
+      return index >= 0 && index < this.LABELS.length
+        ? this.LABELS[index]
+        : "기타";
+    },
 
-    return data;
-  } catch (error) {
-    return [];
-  }
-}
+    getLabelByTime: function (time) {
+      const index = this.getClassIndex(time);
+      return this.getLabel(index);
+    },
 
-async function getselectedClassData(selectedDate) {
-  try {
-    const client = await initSupabase();
+    formatTime: function (time) {
+      if (!time) return "";
+      const timeStr = time.toString().padStart(4, "0");
+      return `${timeStr.substring(0, 2)}:${timeStr.substring(2, 4)}`;
+    },
 
-    const { data, error } = await client
-      .from('activities_choice')
-      .select('*')
-      .eq('날짜', selectedDate);
+    updateTitles: function () {
+      this.TITLES = [];
+      for (let i = 0; i < this.LABELS.length; i++) {
+        const formattedStart = this.formatTime(this.START[i]);
+        const formattedEnd = this.formatTime(this.END[i]);
+        this.TITLES.push(
+          `${this.LABELS[i]} 클래스 (${formattedStart} - ${formattedEnd})`
+        );
+      }
+      return this.TITLES;
+    },
 
-    if (error) throw error;
+    updateFromData: function (data) {
+      if (!data || !Array.isArray(data) || data.length === 0) {
+        return false;
+      }
 
-    return data;
-  } catch (error) {
-    return [];
-  }
-}
+      const uniqueTimes = new Map();
 
-async function getTableStructure(tableName) {
-  try {
-    const client = await initSupabase();
+      data.forEach((row) => {
+        if (row && row.시작시간 && row.종료시간) {
+          const startTime = parseInt(String(row.시작시간));
+          const endTime = parseInt(String(row.종료시간));
 
-    const { data, error } = await client
-      .from(tableName)
-      .select('*')
-      .limit(1);
+          if (!isNaN(startTime) && !isNaN(endTime)) {
+            const key = `${startTime}-${endTime}`;
+            if (!uniqueTimes.has(key)) {
+              uniqueTimes.set(key, { start: startTime, end: endTime });
+            }
+          }
+        }
+      });
 
-    if (error) throw error;
+      const sortedTimes = Array.from(uniqueTimes.values()).sort(
+        (a, b) => a.start - b.start
+      );
 
-    if (data && data.length > 0) {
-      return Object.keys(data[0]);
+      if (sortedTimes.length === 0) {
+        return false;
+      }
+
+      const maxClasses = sortedTimes.length;
+
+      this.START = [];
+      this.END = [];
+      this.LABELS = [];
+
+      for (let i = 0; i < maxClasses; i++) {
+        this.START.push(sortedTimes[i].start);
+        this.END.push(sortedTimes[i].end);
+        this.LABELS.push(`${i + 1}차`);
+      }
+
+      this.updateTitles();
+      return true;
+    },
+  };
+
+  window.initializeClassSelect = function () {
+    selectedMember = window.appState.selectedMember;
+
+    if (!selectedMember) {
+      alert("선택된 회원이 없습니다. 회원을 먼저 선택해주세요.");
+      loadPage("member-select");
+      return;
+    }
+
+    appliedClasses = window.appState.appliedClasses || [];
+
+    selectedDate = window.appState.selectedDate || new Date();
+
+    displayMemberInfo();
+
+    displayAppliedClasses();
+
+    initDateInput();
+
+    loadPlanData();
+
+    setupModalButtons();
+
+    const changeMemberBtn = document.getElementById("change-member-btn");
+    if (changeMemberBtn) {
+      changeMemberBtn.addEventListener("click", changeMember);
+    }
+
+    const resetBtn = document.getElementById("reset-btn");
+    if (resetBtn) {
+      resetBtn.addEventListener("click", resetAllClasses);
+    }
+
+    const modalCloseBtn = document.getElementById("modal-close");
+    if (modalCloseBtn) {
+      modalCloseBtn.addEventListener("click", closeModal);
+    }
+
+    const cancelBtn = document.getElementById("cancel-button");
+    if (cancelBtn) {
+      cancelBtn.addEventListener("click", closeModal);
+    }
+
+    const applyBtn = document.getElementById("apply-button");
+    if (applyBtn) {
+      applyBtn.addEventListener("click", applyActivity);
+    }
+
+    const finalModalCloseBtn = document.getElementById("final-modal-close");
+    if (finalModalCloseBtn) {
+      finalModalCloseBtn.addEventListener("click", function () {
+        document
+          .getElementById("final-confirm-modal")
+          .classList.remove("active");
+      });
+    }
+
+    const finalCancelBtn = document.querySelector(".final-confirm-btn.cancel");
+    if (finalCancelBtn) {
+      finalCancelBtn.addEventListener("click", function () {
+        document
+          .getElementById("final-confirm-modal")
+          .classList.remove("active");
+      });
+    }
+
+    const finalSubmitBtn = document.querySelector(".final-confirm-btn.submit");
+    if (finalSubmitBtn) {
+      finalSubmitBtn.addEventListener("click", function () {
+        alert("최종 신청이 완료되었습니다!");
+        document
+          .getElementById("final-confirm-modal")
+          .classList.remove("active");
+      });
+    }
+
+    const completeModalCloseBtn = document.getElementById(
+      "complete-modal-close"
+    );
+    if (completeModalCloseBtn) {
+      completeModalCloseBtn.addEventListener("click", closeCompleteModal);
+    }
+
+    const completeModalSecondaryBtn = document.getElementById(
+      "complete-modal-btn-secondary"
+    );
+    if (completeModalSecondaryBtn) {
+      completeModalSecondaryBtn.addEventListener("click", closeCompleteModal);
+    }
+  };
+
+  document.addEventListener("DOMContentLoaded", function () {
+    initializeClassSelect();
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" || event.keyCode === 27) {
+      const activeCard = document.querySelector(".product-card.active");
+      if (activeCard) {
+        resetAllCards();
+      }
+    }
+  });
+
+  function initDateInput() {
+    const dateInput = document.getElementById("date-input");
+    if (!dateInput) return;
+
+    if (selectedDate) {
+      const formattedDate = formatDate(selectedDate);
+      dateInput.value = formattedDate;
     } else {
-      return [];
-    }
-  } catch (error) {
-    return [];
-  }
-}
+      const today = new Date();
+      const formattedDate = formatDate(today);
+      dateInput.value = formattedDate;
+      selectedDate = today;
 
-async function checkColumns() {
-  await getTableStructure('activities_choice');
-  await getTableStructure('activities_plan');
-  await getTableStructure('membersinfo');
-}
-
-async function appendClassrowFixed(rowsData) {
-  try {
-    if (!rowsData || !Array.isArray(rowsData) || rowsData.length === 0) {
-      return {
-        success: false,
-        message: "추가할 데이터가 없습니다."
-      };
+      window.updateState("selectedDate", today);
     }
 
-    const client = await initSupabase();
+    dateInput.addEventListener("click", function (event) {
+      event.preventDefault();
 
-    const memberNumber = rowsData[0][10];
-    const dateValue = rowsData[0][2];
-
-    const { error: deleteError } = await client
-      .from('activities_choice')
-      .delete()
-      .eq('회원번호', memberNumber)
-      .eq('날짜', dateValue);
-
-    if (deleteError) throw deleteError;
-
-    const newRowsObjects = rowsData.map(row => {
-      return {
-        계획_id: row[1],
-        날짜: parseInt(row[2]),
-        차수: row[3],
-        시작시간: row[4],
-        종료시간: row[5],
-        직원번호: row[6],
-        직원명: row[7],
-        활동명: row[8],
-        생활영역: row[9],
-        회원번호: row[10],
-        회원명: row[11],
-        생년월일: parseInt(row[12])
-      };
+      const pageContainer = document.querySelector(".class-select-page");
+      if (pageContainer) {
+        pageContainer.classList.add("p1-fade-out");
+        setTimeout(() => {
+          loadPage("member-select");
+        }, 400);
+      }
     });
 
-    const { error: insertError } = await client
-      .from('activities_choice')
-      .insert(newRowsObjects);
+    dateInput.setAttribute("readonly", "readonly");
+  }
 
-    if (insertError) {
-      throw insertError;
+  function handleDateChange(event) {
+    const newDate = new Date(event.target.value);
+    selectedDate = newDate;
+
+    window.updateState("selectedDate", newDate);
+
+    loadPlanData();
+  }
+
+  function formatDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  function displayMemberInfo() {
+    if (!selectedMember) {
+      return;
     }
 
-    return {
-      success: true,
-      message: `${rowsData.length}개의 활동 신청 데이터가 추가되었습니다.`,
-      addedRows: rowsData.length
-    };
-  } catch (error) {
-    return {
-      success: false,
-      message: `오류가 발생했습니다: ${error.message}`,
-      error: error.toString()
-    };
+    try {
+      let birthDate = "정보 없음";
+
+      if (selectedMember.birth) {
+        const birthStr = String(selectedMember.birth);
+        if (birthStr.length === 8) {
+          birthDate = `${birthStr.substring(0, 4)}-${birthStr.substring(
+            4,
+            6
+          )}-${birthStr.substring(6, 8)}`;
+        }
+      }
+
+      const nameElement = document.getElementById("member-name");
+      const detailsElement = document.getElementById("member-details");
+
+      if (nameElement && detailsElement) {
+        nameElement.innerHTML = `${selectedMember.name} <span class="greeting">어르신 즐거운하루되세요</span>`;
+        detailsElement.innerHTML = `
+          <div class="member-number">회원번호: ${selectedMember.number}</div>
+          <div class="member-birth">생년월일: ${birthDate}</div>
+        `;
+      }
+    } catch (error) {
+    }
   }
-}
 
-async function cancelAllClasses(memberNumber, dateValue) {
-  try {
-    const client = await initSupabase();
+  function displayAppliedClasses() {
+    const appliedClassesContainer =
+      document.getElementById("applied-class-tags");
+    if (!appliedClassesContainer) return;
 
-    const { data: deletedData, error } = await client
-      .from('activities_choice')
-      .delete()
-      .eq('회원번호', memberNumber)
-      .eq('날짜', dateValue)
-      .select();
+    appliedClassesContainer.innerHTML = "";
 
-    if (error) throw error;
-
-    const deletedCount = deletedData ? deletedData.length : 0;
-
-    return {
-      success: true,
-      message: deletedCount > 0
-        ? `${deletedCount}개의 활동 신청이 취소되었습니다.`
-        : "취소할 활동 신청이 없습니다.",
-      deletedCount: deletedCount
-    };
-  } catch (error) {
-    return {
-      success: false,
-      message: `오류가 발생했습니다: ${error.message}`,
-      error: error.toString()
-    };
-  }
-}
-
-async function appendClassrowWithVariations(rowsData) {
-  try {
-    if (!rowsData || !Array.isArray(rowsData) || rowsData.length === 0) {
-      return {
-        success: false,
-        message: "추가할 데이터가 없습니다."
-      };
+    if (appliedClasses.length === 0) {
+      appliedClassesContainer.innerHTML =
+        '<span class="empty-applied">아직 신청한 클래스가 없습니다.</span>';
+      return;
     }
 
-    const client = await initSupabase();
+    appliedClasses.forEach((activity, index) => {
+      const tag = document.createElement("div");
+      tag.className = "applied-class-tag";
 
-    await getTableStructure('activities_choice');
+      const time = document.createElement("span");
+      time.className = "applied-class-tag-time";
+      time.textContent = `${activity.startTime.substring(
+        0,
+        2
+      )}:${activity.startTime.substring(2, 4)}`;
 
-    const memberNumber = rowsData[0][10];
-    const dateValue = rowsData[0][2];
+      const title = document.createElement("span");
+      title.className = "applied-class-tag-title";
+      title.textContent = activity.title;
 
-    const { error: deleteError } = await client
-      .from('activities_choice')
-      .delete()
-      .eq('회원번호', memberNumber)
-      .eq('날짜', dateValue);
+      const deleteBtn = document.createElement("span");
+      deleteBtn.className = "applied-class-tag-delete";
+      deleteBtn.textContent = "×";
+      deleteBtn.addEventListener("click", function () {
+        deleteAppliedClass(index);
+      });
 
-    if (deleteError) throw deleteError;
+      tag.appendChild(time);
+      tag.appendChild(title);
+      tag.appendChild(deleteBtn);
 
-    const newRowsObjects = rowsData.map(row => {
-      const obj = {
-        계획_id: row[1],
-        날짜: parseInt(row[2]),
-        차수: row[3],
-        시작시간: row[4],
-        종료시간: row[5],
-        직원번호: row[6],
-        직원명: row[7],
-        활동명: row[8],
-        생활영역: row[9],
-        회원번호: row[10],
-        회원명: row[11],
-        생년월일: parseInt(row[12])
-      };
-
-      return obj;
+      appliedClassesContainer.appendChild(tag);
     });
 
-    const { error: insertError } = await client
-      .from('activities_choice')
-      .insert(newRowsObjects);
+    window.updateState("appliedClasses", appliedClasses);
+  }
 
-    if (insertError) {
-      throw insertError;
+  function deleteAppliedClass(index) {
+    appliedClasses.splice(index, 1);
+
+    displayAppliedClasses();
+
+    window.updateState("appliedClasses", appliedClasses);
+  }
+
+  function displayTimeSection(title, activities) {
+    const container = document.getElementById("products-container");
+    if (!container) return;
+
+    if (!activities || activities.length === 0) {
+      return;
     }
 
-    return {
-      success: true,
-      message: `${rowsData.length}개의 활동 신청 데이터가 추가되었습니다.`,
-      addedRows: rowsData.length
-    };
-  } catch (error) {
-    return {
-      success: false,
-      message: `오류가 발생했습니다: ${error.message}`,
-      error: error.toString()
-    };
+    const classNum = title.charAt(0);
+
+    const sectionContainer = document.createElement("div");
+    sectionContainer.className = "time-section";
+    sectionContainer.id = `class${classNum}-section`;
+
+    const sectionTitle = document.createElement("h2");
+    sectionTitle.className = "time-section-title";
+    sectionTitle.id = `time-title-${classNum}`;
+    sectionTitle.textContent = title;
+
+    const cardsContainer = document.createElement("div");
+    cardsContainer.className = "cards-container";
+    cardsContainer.id = `cards-container-${classNum}`;
+
+    sectionContainer.appendChild(sectionTitle);
+
+    sectionContainer.appendChild(cardsContainer);
+
+    updateProductCards(activities, cardsContainer);
+
+    container.appendChild(sectionContainer);
   }
-}
 
-async function appendClassrow(rowsData) {
-  try {
-    const columns = await getTableStructure('activities_choice');
+  function updateProductCards(activities, targetContainer = null) {
+    const container =
+      targetContainer || document.getElementById("products-container");
+    if (!container) return;
 
-    const hasInstructorColumn = columns.includes('직원명');
+    if (!targetContainer) {
+      container.innerHTML = "";
+    }
 
-    if (!hasInstructorColumn) {
-      return await appendClassrowWithVariations(rowsData);
+    const sortedActivities = [...activities].sort((a, b) => {
+      const titleA = a.활동명 || "제목 없음";
+      const titleB = b.활동명 || "제목 없음";
+      return titleA.localeCompare(titleB);
+    });
+
+    sortedActivities.forEach((activity) => {
+      let id,
+        title,
+        startTime,
+        endTime,
+        instructor,
+        lifeArea,
+        location,
+        imageUrl,
+        description;
+
+      id = activity.계획_id || "";
+      startTime = activity.시작시간 ? String(activity.시작시간) : "";
+      endTime = activity.종료시간 ? String(activity.종료시간) : "";
+      const employeeNumber = activity.직원번호 || "";
+      instructor = activity.직원명 || "정보 없음";
+      title = activity.활동명 || "제목 없음";
+      lifeArea = activity.생활영역 || "";
+      location = activity.장소 || "정보 없음";
+      description = activity.내용및특이사항 || "내용 정보가 없습니다";
+      imageUrl = activity.참고사진url || "https://i.ibb.co/qM8hjSxt/4-3.jpg";
+
+      const formattedStartTime = startTime
+        ? `${startTime.substring(0, 2)}:${startTime.substring(2, 4)}`
+        : "";
+      const formattedEndTime = endTime
+        ? `${endTime.substring(0, 2)}:${endTime.substring(2, 4)}`
+        : "";
+
+      let displayLifeArea = "";
+      if (lifeArea && lifeArea.includes("-")) {
+        const lifeAreaParts = lifeArea.split("-");
+        if (lifeAreaParts.length > 1) {
+          displayLifeArea = lifeAreaParts[1].trim();
+        } else {
+          displayLifeArea = lifeArea;
+        }
+      } else {
+        displayLifeArea = lifeArea;
+      }
+
+      const cardId = `card-${id}`;
+
+      const colorIndex = Math.floor(Math.random() * 8) + 1;
+      const colorClass = `pastel-color-${colorIndex}`;
+
+      const cardHtml = `
+          <div id="${cardId}" class="product-card ${colorClass}" 
+            data-id="${id}" 
+            data-title="${title}" 
+            data-start="${startTime}" 
+            data-end="${endTime}" 
+            data-instructor="${instructor}"
+            data-employee-number="${employeeNumber}" 
+            data-life-area="${lifeArea}"
+            data-location="${location}"
+            data-background="${imageUrl}">
+          <div class="card-front">
+            ${
+              displayLifeArea
+                ? `<div class="ribbon">${displayLifeArea}</div>`
+                : ""
+            }
+            <div class="product-info">
+              <div class="product-title">${title}</div>
+              <div class="product-details">
+                <div class="product-instructor">담당: ${instructor}</div>
+                <div class="product-location">장소: ${location}</div>
+              </div>
+              <div class="product-description" style="background-image: url('${imageUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat;"></div>
+            </div>
+          </div>
+            <div class="card-back" style="background-image: url('${imageUrl}')">
+              <div>
+          <h3>${title}</h3>
+              </div>
+              <button class="apply-class-btn" id="apply-btn-${id}">신청하기</button>
+            </div>
+          </div>
+        `;
+
+      container.insertAdjacentHTML("beforeend", cardHtml);
+
+      const card = container.lastElementChild;
+
+      card.addEventListener("click", handleCardClick);
+
+      const applyBtn = card.querySelector(".apply-class-btn");
+      if (applyBtn) {
+        applyBtn.addEventListener("click", function (event) {
+          event.stopPropagation();
+          openConfirmModal(card);
+        });
+      }
+    });
+  }
+
+  function handleCardClick(event) {
+    if (event.target.tagName === "BUTTON") return;
+
+    const clickedCard = this;
+
+    const isClickedCardActive = clickedCard.classList.contains("active");
+
+    const allCards = document.querySelectorAll(".product-card");
+    const activeCard = document.querySelector(".product-card.active");
+
+    let overlay = document.querySelector(".card-overlay");
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.className = "card-overlay";
+      document.body.appendChild(overlay);
+
+      overlay.addEventListener("click", function () {
+        const activeCard = document.querySelector(".product-card.active");
+        if (activeCard) {
+          activeCard.classList.remove("active");
+
+          document.querySelectorAll(".product-card").forEach((card) => {
+            card.classList.remove("inactive");
+          });
+
+          overlay.classList.remove("active");
+        }
+      });
+    }
+
+    const isDesktop = window.innerWidth > 768;
+
+    if (activeCard && activeCard !== clickedCard) {
+      activeCard.classList.remove("active");
+
+      allCards.forEach((card) => {
+        card.classList.remove("inactive");
+      });
+
+      allCards.forEach((card) => {
+        if (card !== clickedCard) {
+          card.classList.add("inactive");
+        }
+      });
+
+      if (isDesktop) {
+        requestAnimationFrame(() => {
+          clickedCard.classList.add("active");
+          overlay.classList.add("active");
+        });
+      } else {
+        requestAnimationFrame(() => {
+          clickedCard.classList.add("active");
+        });
+      }
+    } else if (isClickedCardActive) {
+      // 카드가 이미 active 상태일 때는 원상복귀하지 않음
+      // 신청하기 버튼은 별도 이벤트로 처리됨
+      return;
     } else {
-      return await appendClassrowFixed(rowsData);
+      allCards.forEach((card) => {
+        if (card !== clickedCard) {
+          card.classList.add("inactive");
+        }
+      });
+
+      if (isDesktop) {
+        requestAnimationFrame(() => {
+          clickedCard.classList.add("active");
+          overlay.classList.add("active");
+        });
+      } else {
+        requestAnimationFrame(() => {
+          clickedCard.classList.add("active");
+        });
+      }
     }
-  } catch (error) {
-    return await appendClassrowFixed(rowsData);
   }
-}
+
+  document.addEventListener("click", function (event) {
+    const activeCard = document.querySelector(".product-card.active");
+
+    if (
+      activeCard &&
+      !event.target.closest(".product-card") &&
+      !event.target.classList.contains("apply-class-btn")
+    ) {
+      if (window.innerWidth <= 768) {
+        resetAllCards();
+      }
+    }
+  });
+
+  function loadPlanData() {
+    const dateInput = document.getElementById("date-input");
+    let selectedDateStr = "";
+
+    if (dateInput && dateInput.value) {
+      selectedDateStr = dateInput.value.replace(/-/g, "");
+    } else {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, "0");
+      const day = String(today.getDate()).padStart(2, "0");
+      selectedDateStr = `${year}${month}${day}`;
+    }
+
+    showLoading(true);
+
+    try {
+      if (
+        !window.totalData ||
+        !window.totalData.planData ||
+        window.totalData.planData.length === 0
+      ) {
+        handleNoPlanData();
+        return;
+      }
+
+      const result = window.totalData.planData;
+      processPlanData(result);
+    } catch (error) {
+      showErrorMessage("활동 계획 데이터를 처리하는 중 오류가 발생했습니다.");
+    }
+
+    function handleNoPlanData() {
+      showLoading(false);
+
+      const message = document.createElement("div");
+      message.className = "success-message";
+      message.style.backgroundColor = "#ff9800";
+      message.textContent = "해당 날짜에 등록된 활동이 없습니다.";
+      document.body.appendChild(message);
+
+      setTimeout(() => {
+        message.classList.add("show");
+
+        setTimeout(() => {
+          message.classList.remove("show");
+
+          setTimeout(() => {
+            document.body.removeChild(message);
+
+            const pageEl = document.querySelector(".class-select-page");
+            if (pageEl) {
+              pageEl.classList.add("p1-fade-out");
+            }
+
+            setTimeout(() => {
+              loadPage("member-select");
+            }, 200);
+          }, 200);
+        }, 2000);
+      }, 10);
+    }
+
+    function processPlanData(result) {
+      if (!result || result.length === 0) {
+        showLoading(false);
+
+        const message = document.createElement("div");
+        message.className = "success-message";
+        message.style.backgroundColor = "#ff9800";
+        message.textContent = "해당 날짜에 등록된 활동이 없습니다.";
+        document.body.appendChild(message);
+
+        setTimeout(() => {
+          message.classList.add("show");
+
+          setTimeout(() => {
+            message.classList.remove("show");
+
+            setTimeout(() => {
+              document.body.removeChild(message);
+
+              document
+                .querySelector(".class-select-page")
+                .classList.add("p1-fade-out");
+
+              setTimeout(() => {
+                loadPage("member-select");
+              }, 200);
+            }, 200);
+          }, 2000);
+        }, 10);
+
+        return;
+      }
+
+      const wasUpdated = CLASS_TIMES.updateFromData(result);
+      if (wasUpdated) {
+      } else {
+        CLASS_TIMES.updateTitles();
+      }
+
+      const classesByTime = {};
+
+      CLASS_TIMES.LABELS.forEach(label => {
+        classesByTime[label] = [];
+      });
+
+      result.forEach((row) => {
+        const startTime = String(row.시작시간);
+        if (startTime) {
+          const classIndex = CLASS_TIMES.getClassIndex(startTime);
+
+          if (classIndex >= 0) {
+            const classType = CLASS_TIMES.LABELS[classIndex];
+            classesByTime[classType].push(row);
+          }
+        }
+      });
+
+      const container = document.getElementById("products-container");
+      if (container) {
+        container.innerHTML = "";
+        
+        container.classList.remove("all-visible");
+      }
+
+      const availableClasses = [];
+
+      CLASS_TIMES.LABELS.forEach((label, index) => {
+        if (classesByTime[label] && classesByTime[label].length > 0) {
+          displayTimeSection(CLASS_TIMES.TITLES[index], classesByTime[label]);
+          availableClasses.push({
+            label: label,
+            title: CLASS_TIMES.TITLES[index],
+            count: classesByTime[label].length
+          });
+        }
+      });
+
+      createDynamicFilterButtons(availableClasses);
+      
+      if (availableClasses.length > 0) {
+        const firstClassNum = availableClasses[0].label.charAt(0);
+        const firstSection = document.getElementById(`class${firstClassNum}-section`);
+        if (firstSection) {
+          firstSection.classList.add("visible");
+        }
+      }
+
+      setTimeout(() => {
+        if (container) {
+          container.classList.add("show");
+        }
+      }, 100);
+
+      showLoading(false);
+    }
+
+    function showErrorMessage(message) {
+      const container = document.getElementById("products-container");
+      if (container) {
+        container.innerHTML = `<div class="error-message">${message}</div>`;
+      }
+
+      showLoading(false);
+    }
+  }
+
+  function openConfirmModal(card) {
+    const id = card.getAttribute("data-id");
+    const title = card.getAttribute("data-title");
+    const startTime = card.getAttribute("data-start");
+    const endTime = card.getAttribute("data-end");
+    const instructor = card.getAttribute("data-instructor");
+    const employeeNumber = card.getAttribute("data-employee-number") || "";
+    const lifeArea = card.getAttribute("data-life-area");
+    const location = card.getAttribute("data-location");
+
+    const formattedStartTime = CLASS_TIMES.formatTime(startTime);
+    const formattedEndTime = CLASS_TIMES.formatTime(endTime);
+
+    selectedActivity = {
+      id: id,
+      title: title,
+      startTime: startTime,
+      endTime: endTime,
+      instructor: instructor,
+      employeeNumber: employeeNumber,
+      lifeArea: lifeArea,
+      location: location,
+    };
+
+    const classType = CLASS_TIMES.getLabelByTime(startTime);
+
+    document.getElementById("confirm-activity-name").textContent = title;
+    document.getElementById(
+      "confirm-time"
+    ).textContent = `${formattedStartTime} ~ ${formattedEndTime}`;
+    document.getElementById("confirm-instructor").textContent = instructor;
+
+    if (selectedMember) {
+      document.getElementById("confirm-member-name").textContent =
+        selectedMember.name;
+    }
+
+    const modal = document.getElementById("confirm-modal");
+    if (modal) modal.classList.add("active");
+  }
+
+  function closeModal() {
+    const modal = document.getElementById("confirm-modal");
+    if (modal) {
+      modal.classList.remove("active");
+
+      selectedActivity = null;
+    }
+  }
+
+  function applyActivity() {
+    if (!selectedActivity) {
+      alert("선택된 활동이 없습니다.");
+      return;
+    }
+
+    const datePicker = document.getElementById("date-input");
+    const activityDate = datePicker?.value
+      ? datePicker.value.replace(/-/g, "")
+      : getCurrentDateString().replace(/-/g, "");
+
+    const applicationData = {
+      activityId: selectedActivity.id,
+      activityDate: activityDate,
+      classType: CLASS_TIMES.getLabelByTime(selectedActivity.startTime),
+      startTime: selectedActivity.startTime,
+      endTime: selectedActivity.endTime,
+      instructor: selectedActivity.instructor,
+      employeeNumber: selectedActivity.employeeNumber,
+      title: selectedActivity.title,
+      lifeArea: selectedActivity.lifeArea,
+      memberNumber: selectedMember.number,
+      memberName: selectedMember.name,
+      memberBirth: selectedMember.birth,
+    };
+
+    addAppliedClass(applicationData);
+    showSuccessMessage();
+    closeModal();
+
+    moveToNextEmptyClass(selectedActivity);
+  }
+
+  function getCurrentDateString() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  function addAppliedClass(applicationData) {
+    const existingByIdIndex = appliedClasses.findIndex(
+      (item) => item.activityId === applicationData.activityId
+    );
+
+    if (existingByIdIndex >= 0) {
+      appliedClasses.splice(existingByIdIndex, 1);
+    } else {
+      const classType = applicationData.classType;
+
+      if (classType !== "기타") {
+        const existingByTimeIndex = appliedClasses.findIndex(
+          (item) => item.classType === classType
+        );
+
+        if (existingByTimeIndex >= 0) {
+          const removedClass = appliedClasses[existingByTimeIndex];
+          appliedClasses.splice(existingByTimeIndex, 1);
+
+          const warningMessage = document.createElement("div");
+          warningMessage.className = "success-message";
+          warningMessage.style.backgroundColor = "#ff9800";
+          warningMessage.textContent = `${classType} 시간대의 기존 신청 (${removedClass.title})이 취소되었습니다.`;
+          document.body.appendChild(warningMessage);
+
+          setTimeout(() => {
+            warningMessage.classList.add("show");
+
+            setTimeout(() => {
+              warningMessage.classList.remove("show");
+
+              setTimeout(() => {
+                document.body.removeChild(warningMessage);
+              }, 300);
+            }, 3000);
+          }, 10);
+        }
+      }
+    }
+
+    appliedClasses.push(applicationData);
+
+    appliedClasses.sort((a, b) =>
+      String(a.startTime).localeCompare(String(b.startTime))
+    );
+
+    displayAppliedClasses();
+  }
+
+  function showSuccessMessage() {
+    const message = document.getElementById("success-message");
+    message.classList.add("show");
+
+    setTimeout(() => {
+      message.classList.remove("show");
+    }, 3000);
+  }
+
+  function changeMember() {
+    document.querySelector(".class-select-page").classList.add("p1-fade-out");
+    setTimeout(() => {
+      loadPage("member-select");
+    }, 400);
+  }
+
+  function resetAllClasses() {
+    if (!appliedClasses || appliedClasses.length === 0 || !selectedMember) {
+      moveToMemberSelect();
+      return;
+    }
+
+    showLoading(true);
+
+    const dateInput = document.getElementById("date-input");
+    const activityDate = dateInput?.value
+      ? dateInput.value.replace(/-/g, "")
+      : formatDate(new Date()).replace(/-/g, "");
+
+    cancelAllClasses(selectedMember.number, activityDate)
+      .then((response) => {
+        if (response.success) {
+          appliedClasses = [];
+          window.updateState("appliedClasses", []);
+
+          displayAppliedClasses();
+
+          const message = document.createElement("div");
+          message.className = "success-message";
+          message.textContent = `${selectedMember.name} 회원님의 모든 신청이 취소되었습니다.`;
+          document.body.appendChild(message);
+
+          setTimeout(() => {
+            message.classList.add("show");
+
+            setTimeout(() => {
+              message.classList.remove("show");
+
+              setTimeout(() => {
+                document.body.removeChild(message);
+
+                moveToMemberSelect();
+              }, 200);
+            }, 1000);
+          }, 10);
+        } else {
+          alert(`신청 취소 중 오류 발생: ${response.message}`);
+          moveToMemberSelect();
+        }
+
+        showLoading(false);
+      })
+      .catch((error) => {
+        alert(`신청 취소 중 오류 발생: ${error.message || error}`);
+
+        showLoading(false);
+
+        moveToMemberSelect();
+      });
+  }
+
+  function moveToMemberSelect() {
+    const pageEl = document.querySelector(".class-select-page");
+    if (pageEl) {
+      pageEl.classList.add("p1-fade-out");
+
+      setTimeout(() => {
+        loadPage("member-select");
+      }, 400);
+    } else {
+      loadPage("member-select");
+    }
+  }
+
+  function showLoading(isShow) {
+    const loadingElement = document.getElementById("loading");
+    if (loadingElement) {
+      loadingElement.style.display = isShow ? "flex" : "none";
+    }
+  }
+
+  function createDynamicFilterButtons(availableClasses) {
+    const filterContainer = document.getElementById("filter-container");
+    if (!filterContainer) return;
+
+    filterContainer.innerHTML = "";
+
+    availableClasses.forEach((classInfo, index) => {
+      const button = document.createElement("button");
+      button.className = "filter-button";
+      if (index === 0) {
+        button.classList.add("active");
+      }
+      button.setAttribute("data-filter", `class${classInfo.label.charAt(0)}`);
+      button.textContent = `${classInfo.label} 클래스`;
+      
+      filterContainer.appendChild(button);
+    });
+
+    setupFilterButtons();
+  }
+
+  function setupFilterButtons() {
+    const filterButtons = document.querySelectorAll(".filter-button");
+    const productsContainer = document.getElementById("products-container");
+
+    filterButtons.forEach((button) => {
+      button.addEventListener("click", function () {
+        filterButtons.forEach((btn) => btn.classList.remove("active"));
+
+        this.classList.add("active");
+
+        const filter = this.getAttribute("data-filter");
+
+        productsContainer.classList.remove("all-visible");
+
+        document.querySelectorAll(".time-section").forEach((section) => {
+          section.classList.remove("visible");
+        });
+
+        const selectedSection = document.getElementById(`${filter}-section`);
+        if (selectedSection) {
+          selectedSection.classList.add("visible");
+        }
+      });
+    });
+  }
+
+  function moveToNextEmptyClass(currentActivity) {
+    resetAllCards();
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    const availableClasses = checkAvailableClasses();
+
+    if (availableClasses.length === 0) {
+      openCompleteModal();
+      return;
+    }
+
+    if (!currentActivity || !currentActivity.startTime) {
+      if (availableClasses.length > 0) {
+        setTimeout(() => {
+          scrollToClass(availableClasses[0]);
+          clickFilterButton(availableClasses[0]);
+        }, 300);
+      }
+      return;
+    }
+
+    const currentClass = CLASS_TIMES.getLabelByTime(currentActivity.startTime);
+
+    if (currentClass === "기타") {
+      if (availableClasses.length > 0) {
+        setTimeout(() => {
+          scrollToClass(availableClasses[0]);
+          clickFilterButton(availableClasses[0]);
+        }, 300);
+      }
+      return;
+    }
+
+    let nextEmptyClass = findNextEmptyClass(currentClass);
+
+    if (nextEmptyClass) {
+      setTimeout(() => {
+        scrollToClass(nextEmptyClass);
+        clickFilterButton(nextEmptyClass);
+      }, 300);
+    } else {
+      if (availableClasses.length > 0) {
+        setTimeout(() => {
+          scrollToClass(availableClasses[0]);
+          clickFilterButton(availableClasses[0]);
+        }, 300);
+      } else {
+        openCompleteModal();
+      }
+    }
+  }
+
+  function scrollToClass(classType) {
+    const sectionId = `class${classType.charAt(0)}-section`;
+    const section = document.getElementById(sectionId);
+
+    if (section) {
+      section.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
+  function resetAllCards() {
+    const activeCard = document.querySelector(".product-card.active");
+    if (activeCard) {
+      activeCard.classList.remove("active");
+    }
+
+    document.querySelectorAll(".product-card.inactive").forEach((card) => {
+      card.classList.remove("inactive");
+    });
+
+    const overlay = document.querySelector(".card-overlay");
+    if (overlay) {
+      overlay.classList.remove("active");
+    }
+  }
+
+  function findNextEmptyClass(currentClass) {
+    const classOrder = CLASS_TIMES.LABELS || [];
+    const currentIndex = classOrder.indexOf(currentClass);
+
+    const appliedClassTypes = [];
+    appliedClasses.forEach((classItem) => {
+      const classType = CLASS_TIMES.getLabelByTime(classItem.startTime);
+      if (classType !== "기타") {
+        appliedClassTypes.push(classType);
+      }
+    });
+
+    for (let i = currentIndex + 1; i < classOrder.length; i++) {
+      if (!appliedClassTypes.includes(classOrder[i])) {
+        return classOrder[i];
+      }
+    }
+
+    for (let i = 0; i < currentIndex; i++) {
+      if (!appliedClassTypes.includes(classOrder[i])) {
+        return classOrder[i];
+      }
+    }
+
+    return null;
+  }
+
+  function clickFilterButton(classType) {
+    const filterButton = document.querySelector(
+      `.filter-button[data-filter="class${classType.charAt(0)}"]`
+    );
+
+    if (filterButton) {
+      filterButton.click();
+    }
+  }
+
+  function closeCompleteModal() {
+    const modal = document.getElementById("complete-modal-overlay");
+    if (modal) {
+      modal.classList.remove("show");
+    }
+    
+    if (!isProcessing) {
+      const submitBtn = document.getElementById("complete-modal-btn-primary");
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.style.pointerEvents = "auto";
+        submitBtn.style.opacity = "1";
+      }
+    }
+  }
+
+  function setButtonProcessing(processing) {
+    const submitBtn = document.getElementById("complete-modal-btn-primary");
+    if (submitBtn) {
+      if (processing) {
+        submitBtn.disabled = true;
+        submitBtn.style.pointerEvents = "none";
+        submitBtn.style.opacity = "0.6";
+        submitBtn.textContent = "처리 중...";
+        submitBtn.classList.add("processing");
+      } else {
+        submitBtn.disabled = false;
+        submitBtn.style.pointerEvents = "auto";
+        submitBtn.style.opacity = "1";
+        submitBtn.textContent = "신청 완료";
+        submitBtn.classList.remove("processing");
+      }
+    }
+  }
+
+  function resetProcessingState() {
+    isProcessing = false;
+    setButtonProcessing(false);
+  }
+
+  function finalizeAllApplications() {
+    if (isProcessing) {
+      return;
+    }
+    
+    isProcessing = true;
+    
+    setButtonProcessing(true);
+
+    if (!appliedClasses || appliedClasses.length === 0) {
+      alert("신청한 클래스가 없습니다.");
+      resetProcessingState();
+      closeCompleteModal();
+      return;
+    }
+
+    closeCompleteModal();
+
+    const processingTimeout = setTimeout(() => {
+      resetProcessingState();
+    }, 30000);
+
+    setTimeout(() => {
+      showLoading(true);
+
+      if (typeof checkColumns === "function") {
+        checkColumns()
+          .then(() => {
+            saveData();
+          })
+          .catch((error) => {
+            saveData();
+          });
+      } else {
+        saveData();
+      }
+
+      function saveData() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, "0");
+        const day = String(now.getDate()).padStart(2, "0");
+        const hours = String(now.getHours()).padStart(2, "0");
+        const minutes = String(now.getMinutes()).padStart(2, "0");
+        const seconds = String(now.getSeconds()).padStart(2, "0");
+        const milliseconds = String(now.getMilliseconds()).padStart(3, "0");
+
+        const timeStamp = `${year}${month}${day}${hours}${minutes}${seconds}${milliseconds}`;
+        const applicationId = `class-${selectedMember.number}-${timeStamp}`;
+
+        const rowsData = appliedClasses.map((classItem) => {
+          let activityDate = classItem.activityDate;
+          if (activityDate && activityDate.includes("-")) {
+            activityDate = activityDate.replace(/-/g, "");
+          }
+
+          let memberBirth = classItem.memberBirth;
+          if (memberBirth && String(memberBirth).includes("-")) {
+            memberBirth = String(memberBirth).replace(/-/g, "");
+          }
+
+          return [
+            applicationId,
+            classItem.activityId,
+            activityDate,
+            classItem.classType,
+            classItem.startTime,
+            classItem.endTime,
+            classItem.employeeNumber,
+            classItem.instructor,
+            classItem.title,
+            classItem.lifeArea,
+            classItem.memberNumber,
+            classItem.memberName,
+            memberBirth,
+          ];
+        });
+
+        appendClassrow(rowsData)
+          .then((response) => {
+            clearTimeout(processingTimeout);
+
+            appliedClasses = [];
+            window.updateState("appliedClasses", []);
+
+            showLoading(false);
+            
+            resetProcessingState();
+
+            const message = document.createElement("div");
+            message.className = "success-message";
+            message.textContent = "모든 활동 신청이 완료되었습니다!";
+            document.body.appendChild(message);
+
+            setTimeout(() => {
+              message.classList.add("show");
+              
+              document.querySelector(".class-select-page").classList.add("p1-fade-out");
+              
+              setTimeout(() => {
+                loadPage("member-select");
+                
+                setTimeout(() => {
+                  message.classList.remove("show");
+                  document.body.removeChild(message);
+                }, 300);
+              }, 50);
+            }, 10);
+          })
+          .catch((error) => {
+            clearTimeout(processingTimeout);
+            
+            showLoading(false);
+            
+            resetProcessingState();
+
+            alert("활동 신청 데이터 저장에 실패했습니다: " + error);
+          });
+      }
+    }, 50);
+  }
+
+  function setupModalButtons() {
+    const submitBtn = document.getElementById("complete-modal-btn-primary");
+    if (submitBtn) {
+      submitBtn.removeEventListener("click", finalizeAllApplications);
+      
+      submitBtn.addEventListener("click", function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        if (isProcessing) {
+          return;
+        }
+        
+        if (submitBtn.disabled || submitBtn.style.pointerEvents === "none") {
+          return;
+        }
+        
+        finalizeAllApplications();
+      });
+    }
+
+    document.addEventListener("click", function (event) {
+      if (event.target.classList.contains("apply-class-btn")) {
+        event.stopPropagation();
+        const card = event.target.closest(".product-card");
+        if (card) {
+          openConfirmModal(card);
+        }
+      }
+    });
+  }
+
+  function openCompleteModal() {
+    if (!appliedClasses || appliedClasses.length === 0) {
+      return;
+    }
+    
+    if (!isProcessing) {
+      resetProcessingState();
+    }
+
+    const listContainer = document.getElementById("complete-classes-list");
+    if (!listContainer) {
+      return;
+    }
+
+    listContainer.innerHTML = "";
+
+    const sortedClasses = [...appliedClasses].sort((a, b) => {
+      const startTimeA = parseInt(a.startTime);
+      const startTimeB = parseInt(b.startTime);
+      return startTimeA - startTimeB;
+    });
+
+    sortedClasses.forEach((classItem, index) => {
+      const classType = CLASS_TIMES.getLabelByTime(classItem.startTime);
+
+      const formattedStartTime = CLASS_TIMES.formatTime(classItem.startTime);
+      const formattedEndTime = CLASS_TIMES.formatTime(classItem.endTime);
+      const formattedTime = `${formattedStartTime} ~ ${formattedEndTime}`;
+
+      const itemHTML = `
+            <div id="complete-item-${index}" class="complete-class-item">
+              <div id="class-badge-${index}" class="complete-class-badge">${classType}</div>
+              <div class="complete-class-content">
+                <div id="class-title-${index}" class="complete-class-title">${
+        classItem.title
+      }</div>
+                <div id="class-details-${index}" class="complete-class-instructor">
+                  ${formattedTime} | 담당: ${
+        classItem.instructor
+      } | 장소: ${classItem.location || "정보 없음"}
+                </div>
+              </div>
+            </div>
+          `;
+
+      listContainer.insertAdjacentHTML("beforeend", itemHTML);
+    });
+
+    const messageElement = document.getElementById("complete-modal-message");
+    if (messageElement && selectedMember) {
+      messageElement.textContent = `${selectedMember.name} 회원님이 ${sortedClasses.length}개의 활동에 신청하셨습니다. 신청을 완료하시겠습니까?`;
+    }
+
+    const modalElement = document.getElementById("complete-modal-overlay");
+    if (modalElement) {
+      modalElement.classList.add("show");
+    }
+  }
+
+  function checkAvailableClasses() {
+    const classOrder = CLASS_TIMES.LABELS || [];
+
+    const appliedClassTypes = [];
+    appliedClasses.forEach((classItem) => {
+      const classType = CLASS_TIMES.getLabelByTime(classItem.startTime);
+      if (classType !== "기타") {
+        appliedClassTypes.push(classType);
+      }
+    });
+
+    const availableClassTypes = [];
+    classOrder.forEach((classType) => {
+      if (!appliedClassTypes.includes(classType)) {
+        const sectionId = `class${classType.charAt(0)}-section`;
+        const section = document.getElementById(sectionId);
+
+        if (section) {
+          const cards = section.querySelectorAll(
+            ".product-card:not(.inactive)"
+          );
+          if (cards.length > 0) {
+            availableClassTypes.push(classType);
+          }
+        }
+      }
+    });
+
+    return availableClassTypes;
+  }
+</script>
